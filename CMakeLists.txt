@@ -40,6 +40,8 @@ find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(vision_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 # =============================================================================
 # Find OpenCV
@@ -78,7 +80,7 @@ else()
   set(ONNXRUNTIME_VERSION "1.20.1")
   set(ONNXRUNTIME_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/onnxruntime-download")
   set(ONNXRUNTIME_EXTRACT_DIR "${CMAKE_BINARY_DIR}/onnxruntime")
-  
+
   if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
     set(ONNXRUNTIME_ARCHIVE "onnxruntime-linux-aarch64-${ONNXRUNTIME_VERSION}.tgz")
   else()
@@ -88,13 +90,13 @@ else()
       set(ONNXRUNTIME_ARCHIVE "onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz")
     endif()
   endif()
-  
+
   set(ONNXRUNTIME_ARCHIVE_PATH "${ONNXRUNTIME_DOWNLOAD_DIR}/${ONNXRUNTIME_ARCHIVE}")
   set(ONNXRUNTIME_URL "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${ONNXRUNTIME_ARCHIVE}")
-  
+
   if(NOT EXISTS "${ONNXRUNTIME_EXTRACT_DIR}/lib/libonnxruntime.so")
     message(STATUS "Downloading ONNX Runtime from: ${ONNXRUNTIME_URL}")
-    
+
     file(MAKE_DIRECTORY ${ONNXRUNTIME_DOWNLOAD_DIR})
     file(DOWNLOAD
       "${ONNXRUNTIME_URL}"
@@ -106,7 +108,7 @@ else()
     if(NOT STATUS_CODE EQUAL 0)
       message(FATAL_ERROR "Failed to download ONNX Runtime: ${DOWNLOAD_STATUS}")
     endif()
-    
+
     message(STATUS "Extracting ONNX Runtime...")
     file(MAKE_DIRECTORY ${ONNXRUNTIME_EXTRACT_DIR})
     execute_process(
@@ -117,7 +119,7 @@ else()
     if(NOT EXTRACT_RESULT EQUAL 0)
       message(FATAL_ERROR "Failed to extract ONNX Runtime")
     endif()
-    
+
     # Move contents to extract dir (strip top-level folder)
     file(GLOB ONNX_CONTENTS "${ONNXRUNTIME_DOWNLOAD_DIR}/onnxruntime-*/*")
     foreach(item ${ONNX_CONTENTS})
@@ -125,7 +127,7 @@ else()
       file(RENAME "${item}" "${ONNXRUNTIME_EXTRACT_DIR}/${item_name}")
     endforeach()
   endif()
-  
+
   set(ONNXRUNTIME_INCLUDE_DIR "${ONNXRUNTIME_EXTRACT_DIR}/include")
   set(ONNXRUNTIME_LIB "${ONNXRUNTIME_EXTRACT_DIR}/lib/libonnxruntime.so")
 endif()
@@ -142,42 +144,42 @@ set(YOLOS_CPP_URL "https://github.com/Geekgineer/YOLOs-CPP/archive/refs/heads/${
 
 if(NOT EXISTS "${YOLOS_CPP_DIR}/include/yolos/yolos.hpp")
   message(STATUS "Downloading YOLOs-CPP from: ${YOLOS_CPP_URL}")
-  
+
   file(DOWNLOAD
     "${YOLOS_CPP_URL}"
     "${CMAKE_BINARY_DIR}/yolos_cpp.tar.gz"
     SHOW_PROGRESS
     STATUS DOWNLOAD_STATUS
   )
-  
+
   list(GET DOWNLOAD_STATUS 0 STATUS_CODE)
   if(NOT STATUS_CODE EQUAL 0)
     message(FATAL_ERROR "Failed to download YOLOs-CPP: ${DOWNLOAD_STATUS}")
   endif()
-  
+
   message(STATUS "Extracting YOLOs-CPP...")
   execute_process(
     COMMAND ${CMAKE_COMMAND} -E tar xzf "${CMAKE_BINARY_DIR}/yolos_cpp.tar.gz"
     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     RESULT_VARIABLE EXTRACT_RESULT
   )
-  
+
   if(NOT EXTRACT_RESULT EQUAL 0)
     message(FATAL_ERROR "Failed to extract YOLOs-CPP")
   endif()
-  
+
   # Find the extracted folder (can vary by branch, e.g. YOLOs-CPP-main or YOLOs-CPP-master)
   file(GLOB EXTRACTED_DIRS "${CMAKE_BINARY_DIR}/YOLOs-CPP-*")
   if(NOT EXTRACTED_DIRS)
     message(FATAL_ERROR "Extraction failed: Could not find YOLOs-CPP-* directory in ${CMAKE_BINARY_DIR}")
   endif()
-  
+
   # Use the first match
   list(GET EXTRACTED_DIRS 0 EXTRACTED_DIR)
-  
+
   # Remove build dir if it exists from previous run
   file(REMOVE_RECURSE "${YOLOS_CPP_DIR}")
-  
+
   # Rename to standard build directory
   file(RENAME "${EXTRACTED_DIR}" "${YOLOS_CPP_DIR}")
   file(REMOVE "${CMAKE_BINARY_DIR}/yolos_cpp.tar.gz")
@@ -194,7 +196,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/OBBDetection2DArray.msg"
   "msg/KeyPoint2D.msg"
   "msg/KeyPoint2DArray.msg"
-  DEPENDENCIES std_msgs geometry_msgs
+  "srv/SegmentImage.srv"
+  DEPENDENCIES std_msgs geometry_msgs sensor_msgs vision_msgs
 )
 
 # =============================================================================
@@ -228,6 +231,7 @@ add_library(${PROJECT_NAME}_components SHARED
   src/nodes/pose_node.cpp
   src/nodes/obb_node.cpp
   src/nodes/classifier_node.cpp
+  src/nodes/segmentor_service_node.cpp
 )
 
 target_include_directories(${PROJECT_NAME}_components PUBLIC
@@ -268,6 +272,11 @@ rclcpp_components_register_node(${PROJECT_NAME}_components
 rclcpp_components_register_node(${PROJECT_NAME}_components
   PLUGIN "ros2_yolos_cpp::YolosSegmentorNode"
   EXECUTABLE yolos_segmentor_node
+)
+
+rclcpp_components_register_node(${PROJECT_NAME}_components
+  PLUGIN "ros2_yolos_cpp::YolosSegmentorServiceNode"
+  EXECUTABLE yolos_segmentor_service_node
 )
 
 rclcpp_components_register_node(${PROJECT_NAME}_components
@@ -323,23 +332,23 @@ install(DIRECTORY config/
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
-  
+
   find_package(ament_cmake_gtest REQUIRED)
-  
+
   # Unit tests (always run)
   ament_add_gtest(test_detection_converter
     test/unit/test_detection_converter.cpp
   )
   target_link_libraries(test_detection_converter ${PROJECT_NAME}_components)
   ament_target_dependencies(test_detection_converter rclcpp vision_msgs)
-  
+
   # Integration tests (require model files via environment variables)
   # Set YOLOS_TEST_MODEL, YOLOS_TEST_LABELS, YOLOS_TEST_IMAGE to run
-  
+
   macro(add_integration_test target_name source_file)
     ament_add_gtest(${target_name} ${source_file})
-    target_link_libraries(${target_name} 
-      ${PROJECT_NAME}_components 
+    target_link_libraries(${target_name}
+      ${PROJECT_NAME}_components
       ${OpenCV_LIBS}
     )
     ament_target_dependencies(${target_name} rclcpp rclcpp_lifecycle)
@@ -365,6 +374,7 @@ ament_export_dependencies(
   cv_bridge
   sensor_msgs
   vision_msgs
+  rosidl_default_runtime
 )
 
 ament_package()

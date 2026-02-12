@@ -3,17 +3,13 @@
 <package format="3">
   <name>ros2_yolos_cpp</name>
   <version>1.0.0</version>
-  <description>
-    Production-grade ROS 2 wrapper for YOLOs-CPP inference library.
-    Supports Detection, Segmentation, Pose, OBB, and Classification tasks
-    with lifecycle management and zero-copy composition.
-  </description>
+  <description>Production-grade ROS 2 wrapper for YOLOs-CPP inference library. Supports Detection, Segmentation, Pose, OBB, and Classification tasks with lifecycle management and zero-copy composition.</description>
   <maintainer email="abdalrahman.m5959@gmail.com">YOLOs-CPP Team</maintainer>
   <license>AGPL-3.0</license>
-  
+
   <url type="website">https://github.com/Geekgineer/YOLOs-CPP</url>
   <url type="repository">https://github.com/Geekgineer/ros2_yolos_cpp</url>
-  
+
   <author email="abdalrahman.m5959@gmail.com">YOLOs-CPP Team</author>
 
   <!-- Build tool -->
@@ -31,6 +27,7 @@
   <build_depend>std_msgs</build_depend>
   <build_depend>geometry_msgs</build_depend>
   <build_depend>lifecycle_msgs</build_depend>
+  <build_depend>rosidl_default_generators</build_depend>
 
   <!-- Runtime dependencies -->
   <exec_depend>rclcpp</exec_depend>
@@ -43,6 +40,7 @@
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>lifecycle_msgs</exec_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
 
   <!-- Message generation -->
   <member_of_group>rosidl_interface_packages</member_of_group>

@@ -1,0 +1,13 @@
+# Request
+sensor_msgs/Image image
+float32 conf_threshold
+float32 nms_threshold
+bool return_debug
+
+---
+# Response
+vision_msgs/Detection2DArray detections
+sensor_msgs/Image mask
+sensor_msgs/Image debug_image
+bool success
+string message
