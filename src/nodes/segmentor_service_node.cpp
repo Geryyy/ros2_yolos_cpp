@@ -75,11 +75,19 @@ void YolosSegmentorServiceNode::handleRequest(
   const std::shared_ptr<srv::SegmentImage::Request> req,
   std::shared_ptr<srv::SegmentImage::Response> res)
 {
+  RCLCPP_INFO(
+    get_logger(),
+    "Received segmentation request (conf_threshold=%.2f, nms_threshold=%.2f)",
+    req->conf_threshold, req->nms_threshold);
+
   static std::mutex inference_mutex;  // GPU protection
 
   if (!segmentor_ || !segmentor_->isInitialized()) {
     res->success = false;
     res->message = "Segmentor not initialized";
+    RCLCPP_ERROR(
+      get_logger(),
+      "Segmentor not initialized");
     return;
   }
 
@@ -98,6 +106,11 @@ void YolosSegmentorServiceNode::handleRequest(
 
     auto segs =
       segmentor_->segment(cv->image, conf, nms);
+
+    RCLCPP_INFO(
+      get_logger(),
+      "Segmentation completed: %zu segmentations",
+      segs.size());
 
     res->detections =
       conversion::toDetection2DArray(
@@ -125,6 +138,11 @@ void YolosSegmentorServiceNode::handleRequest(
 
     res->success = true;
     res->message = "OK";
+
+    RCLCPP_INFO(
+      get_logger(),
+      "Segmentation completed: %zu segmentations",
+      segs.size());
 
   } catch (const std::exception & e) {
     res->success = false;
