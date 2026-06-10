@@ -7,6 +7,7 @@
 #include <memory>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <std_msgs/msg/float64_multi_array.hpp>
 #include <vision_msgs/msg/detection2_d_array.hpp>
 #include "ros2_yolos_cpp/visibility_control.hpp"
 #include "ros2_yolos_cpp/adapters/segmentor_adapter.hpp"
@@ -33,8 +34,12 @@ private:
   rclcpp_lifecycle::LifecyclePublisher<vision_msgs::msg::Detection2DArray>::SharedPtr det_pub_;
   rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr mask_pub_;
   rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr debug_pub_;
+  rclcpp_lifecycle::LifecyclePublisher<std_msgs::msg::Float64MultiArray>::SharedPtr timing_pub_;
   float conf_, nms_;
   bool debug_;
+  bool publish_timing_;
+  int timing_log_every_n_frames_;
+  uint64_t frame_count_{0};
 };
 
 }  // namespace ros2_yolos_cpp

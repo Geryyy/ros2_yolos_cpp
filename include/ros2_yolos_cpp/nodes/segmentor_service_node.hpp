@@ -1,6 +1,7 @@
 #pragma once
 
 #include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/float64_multi_array.hpp>
 #include "ros2_yolos_cpp/adapters/segmentor_adapter.hpp"
 #include "ros2_yolos_cpp/srv/segment_image.hpp"
 
@@ -24,6 +25,7 @@ private:
   std::shared_ptr<SegmentorAdapter> segmentor_;
   rclcpp::Service<srv::SegmentImage>::SharedPtr service_;
   rclcpp::CallbackGroup::SharedPtr service_group_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr timing_pub_;
 };
 
 }  // namespace ros2_yolos_cpp

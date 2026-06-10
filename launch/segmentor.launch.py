@@ -35,6 +35,11 @@ def generate_launch_description():
         default_value='/camera/image_raw',
         description='Input image topic'
     )
+    timing_log_every_n_frames_arg = DeclareLaunchArgument(
+        'timing_log_every_n_frames',
+        default_value='30',
+        description='Log YOLO topic timing every N frames'
+    )
 
     # Composable node container
     container = ComposableNodeContainer(
@@ -54,6 +59,8 @@ def generate_launch_description():
                     'conf_threshold': LaunchConfiguration('conf_threshold'),
                     'nms_threshold': 0.45,
                     'publish_debug_image': True,
+                    'publish_timing': True,
+                    'timing_log_every_n_frames': LaunchConfiguration('timing_log_every_n_frames'),
                 }],
                 remappings=[
                     ('~/image_raw', LaunchConfiguration('image_topic')),
@@ -69,5 +76,6 @@ def generate_launch_description():
         use_gpu_arg,
         conf_threshold_arg,
         image_topic_arg,
+        timing_log_every_n_frames_arg,
         container,
     ])

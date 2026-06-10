@@ -1,6 +1,7 @@
 #include "ros2_yolos_cpp/nodes/segmentor_service_node.hpp"
 #include "ros2_yolos_cpp/conversion/segmentation_converter.hpp"
 
+#include <chrono>
 #include <cv_bridge/cv_bridge.h>
 #include <mutex>
 
@@ -44,6 +45,8 @@ YolosSegmentorServiceNode::YolosSegmentorServiceNode(
     rmw_qos_profile_services_default,
     service_group_);
 
+  timing_pub_ = create_publisher<std_msgs::msg::Float64MultiArray>("~/timing", 10);
+
   RCLCPP_INFO(
     get_logger(),
     "Segmentation service ready.");
@@ -75,6 +78,7 @@ void YolosSegmentorServiceNode::handleRequest(
   const std::shared_ptr<srv::SegmentImage::Request> req,
   std::shared_ptr<srv::SegmentImage::Response> res)
 {
+  const auto t_start = std::chrono::steady_clock::now();
   RCLCPP_INFO(
     get_logger(),
     "Received segmentation request (conf_threshold=%.2f, nms_threshold=%.2f)",
@@ -93,6 +97,7 @@ void YolosSegmentorServiceNode::handleRequest(
 
   try {
     auto cv = cv_bridge::toCvCopy(req->image, "bgr8");
+    const auto t_after_convert = std::chrono::steady_clock::now();
 
     float conf = req->conf_threshold > 0 ?
       req->conf_threshold :
@@ -106,11 +111,7 @@ void YolosSegmentorServiceNode::handleRequest(
 
     auto segs =
       segmentor_->segment(cv->image, conf, nms);
-
-    RCLCPP_INFO(
-      get_logger(),
-      "Segmentation completed: %zu segmentations",
-      segs.size());
+    const auto t_after_infer = std::chrono::steady_clock::now();
 
     res->detections =
       conversion::toDetection2DArray(
@@ -135,14 +136,33 @@ void YolosSegmentorServiceNode::handleRequest(
         "bgr8",
         debug).toImageMsg();
     }
+    const auto t_after_pack = std::chrono::steady_clock::now();
 
     res->success = true;
     res->message = "OK";
 
+    const auto convert_ms =
+      std::chrono::duration<double, std::milli>(t_after_convert - t_start).count();
+    const auto infer_ms =
+      std::chrono::duration<double, std::milli>(t_after_infer - t_after_convert).count();
+    const auto pack_ms =
+      std::chrono::duration<double, std::milli>(t_after_pack - t_after_infer).count();
+    const auto total_ms =
+      std::chrono::duration<double, std::milli>(t_after_pack - t_start).count();
     RCLCPP_INFO(
       get_logger(),
-      "Segmentation completed: %zu segmentations",
-      segs.size());
+      "YOLO service segmentation completed: segmentations=%zu total=%.1f ms "
+      "(convert=%.1f infer=%.1f pack=%.1f)",
+      segs.size(), total_ms, convert_ms, infer_ms, pack_ms);
+    std_msgs::msg::Float64MultiArray timing;
+    timing.data = {
+      static_cast<double>(segs.size()),
+      total_ms,
+      convert_ms,
+      infer_ms,
+      pack_ms
+    };
+    timing_pub_->publish(timing);
 
   } catch (const std::exception & e) {
     res->success = false;
