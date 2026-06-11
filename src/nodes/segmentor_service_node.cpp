@@ -46,6 +46,11 @@ YolosSegmentorServiceNode::YolosSegmentorServiceNode(
     service_group_);
 
   timing_pub_ = create_publisher<std_msgs::msg::Float64MultiArray>("~/timing", 10);
+  timing_segmentations_pub_ = create_publisher<std_msgs::msg::Float64>("~/timing/segmentations", 10);
+  timing_total_ms_pub_ = create_publisher<std_msgs::msg::Float64>("~/timing/total_ms", 10);
+  timing_convert_ms_pub_ = create_publisher<std_msgs::msg::Float64>("~/timing/convert_ms", 10);
+  timing_infer_ms_pub_ = create_publisher<std_msgs::msg::Float64>("~/timing/infer_ms", 10);
+  timing_pack_ms_pub_ = create_publisher<std_msgs::msg::Float64>("~/timing/pack_ms", 10);
 
   RCLCPP_INFO(
     get_logger(),
@@ -163,6 +168,17 @@ void YolosSegmentorServiceNode::handleRequest(
       pack_ms
     };
     timing_pub_->publish(timing);
+    std_msgs::msg::Float64 scalar;
+    scalar.data = static_cast<double>(segs.size());
+    timing_segmentations_pub_->publish(scalar);
+    scalar.data = total_ms;
+    timing_total_ms_pub_->publish(scalar);
+    scalar.data = convert_ms;
+    timing_convert_ms_pub_->publish(scalar);
+    scalar.data = infer_ms;
+    timing_infer_ms_pub_->publish(scalar);
+    scalar.data = pack_ms;
+    timing_pack_ms_pub_->publish(scalar);
 
   } catch (const std::exception & e) {
     res->success = false;

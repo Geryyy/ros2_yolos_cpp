@@ -50,8 +50,16 @@ YolosSegmentorNode::CallbackReturn YolosSegmentorNode::on_configure(const rclcpp
   det_pub_ = create_publisher<vision_msgs::msg::Detection2DArray>("~/detections", 10);
   mask_pub_ = create_publisher<sensor_msgs::msg::Image>("~/mask", 1);
   if (debug_) debug_pub_ = create_publisher<sensor_msgs::msg::Image>("~/debug_image", 1);
-  if (publish_timing_) timing_pub_ =
-    create_publisher<std_msgs::msg::Float64MultiArray>("~/timing", 10);
+  if (publish_timing_) {
+    timing_pub_ = create_publisher<std_msgs::msg::Float64MultiArray>("~/timing", 10);
+    timing_frame_count_pub_ = create_publisher<std_msgs::msg::Float64>("~/timing/frame_count", 10);
+    timing_segmentations_pub_ = create_publisher<std_msgs::msg::Float64>("~/timing/segmentations", 10);
+    timing_total_ms_pub_ = create_publisher<std_msgs::msg::Float64>("~/timing/total_ms", 10);
+    timing_convert_ms_pub_ = create_publisher<std_msgs::msg::Float64>("~/timing/convert_ms", 10);
+    timing_infer_ms_pub_ = create_publisher<std_msgs::msg::Float64>("~/timing/infer_ms", 10);
+    timing_publish_ms_pub_ = create_publisher<std_msgs::msg::Float64>("~/timing/publish_ms", 10);
+    timing_debug_ms_pub_ = create_publisher<std_msgs::msg::Float64>("~/timing/debug_ms", 10);
+  }
   return CallbackReturn::SUCCESS;
 }
 
@@ -59,6 +67,13 @@ YolosSegmentorNode::CallbackReturn YolosSegmentorNode::on_activate(const rclcpp_
   det_pub_->on_activate(); mask_pub_->on_activate();
   if (debug_pub_) debug_pub_->on_activate();
   if (timing_pub_) timing_pub_->on_activate();
+  if (timing_frame_count_pub_) timing_frame_count_pub_->on_activate();
+  if (timing_segmentations_pub_) timing_segmentations_pub_->on_activate();
+  if (timing_total_ms_pub_) timing_total_ms_pub_->on_activate();
+  if (timing_convert_ms_pub_) timing_convert_ms_pub_->on_activate();
+  if (timing_infer_ms_pub_) timing_infer_ms_pub_->on_activate();
+  if (timing_publish_ms_pub_) timing_publish_ms_pub_->on_activate();
+  if (timing_debug_ms_pub_) timing_debug_ms_pub_->on_activate();
   auto opt = rclcpp::SubscriptionOptions(); opt.callback_group = cb_;
   sub_ = create_subscription<sensor_msgs::msg::Image>("~/image_raw", rclcpp::SensorDataQoS(),
     std::bind(&YolosSegmentorNode::imageCallback, this, std::placeholders::_1), opt);
@@ -69,12 +84,26 @@ YolosSegmentorNode::CallbackReturn YolosSegmentorNode::on_deactivate(const rclcp
   sub_.reset(); det_pub_->on_deactivate(); mask_pub_->on_deactivate();
   if (debug_pub_) debug_pub_->on_deactivate();
   if (timing_pub_) timing_pub_->on_deactivate();
+  if (timing_frame_count_pub_) timing_frame_count_pub_->on_deactivate();
+  if (timing_segmentations_pub_) timing_segmentations_pub_->on_deactivate();
+  if (timing_total_ms_pub_) timing_total_ms_pub_->on_deactivate();
+  if (timing_convert_ms_pub_) timing_convert_ms_pub_->on_deactivate();
+  if (timing_infer_ms_pub_) timing_infer_ms_pub_->on_deactivate();
+  if (timing_publish_ms_pub_) timing_publish_ms_pub_->on_deactivate();
+  if (timing_debug_ms_pub_) timing_debug_ms_pub_->on_deactivate();
   return CallbackReturn::SUCCESS;
 }
 
 YolosSegmentorNode::CallbackReturn YolosSegmentorNode::on_cleanup(const rclcpp_lifecycle::State&) {
   if (segmentor_) { segmentor_->shutdown(); segmentor_.reset(); }
   det_pub_.reset(); mask_pub_.reset(); debug_pub_.reset(); timing_pub_.reset();
+  timing_frame_count_pub_.reset();
+  timing_segmentations_pub_.reset();
+  timing_total_ms_pub_.reset();
+  timing_convert_ms_pub_.reset();
+  timing_infer_ms_pub_.reset();
+  timing_publish_ms_pub_.reset();
+  timing_debug_ms_pub_.reset();
   return CallbackReturn::SUCCESS;
 }
 
@@ -126,6 +155,22 @@ void YolosSegmentorNode::imageCallback(const sensor_msgs::msg::Image::ConstShare
         debug_ms
       };
       timing_pub_->publish(timing);
+
+      std_msgs::msg::Float64 scalar;
+      scalar.data = static_cast<double>(frame_count_);
+      timing_frame_count_pub_->publish(scalar);
+      scalar.data = static_cast<double>(segs.size());
+      timing_segmentations_pub_->publish(scalar);
+      scalar.data = total_ms;
+      timing_total_ms_pub_->publish(scalar);
+      scalar.data = convert_ms;
+      timing_convert_ms_pub_->publish(scalar);
+      scalar.data = infer_ms;
+      timing_infer_ms_pub_->publish(scalar);
+      scalar.data = publish_ms;
+      timing_publish_ms_pub_->publish(scalar);
+      scalar.data = debug_ms;
+      timing_debug_ms_pub_->publish(scalar);
     }
   } catch (const std::exception& e) { RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "%s", e.what()); }
 }
