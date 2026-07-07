@@ -15,6 +15,15 @@ YolosSegmentorServiceNode::YolosSegmentorServiceNode(
   declareParameters();
   auto config = loadConfig();
 
+  RCLCPP_INFO(
+    get_logger(),
+    "YOLO segmentor service config: model_path=%s labels_path=%s use_gpu=%s conf_threshold=%.3f nms_threshold=%.3f",
+    config.model_path.c_str(),
+    config.labels_path.c_str(),
+    config.use_gpu ? "true" : "false",
+    config.conf_threshold,
+    config.nms_threshold);
+
   if (config.model_path.empty() || config.labels_path.empty()) {
     RCLCPP_FATAL(
       get_logger(),
